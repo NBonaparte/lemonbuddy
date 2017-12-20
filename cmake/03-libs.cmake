@@ -16,6 +16,7 @@ else()
   querylib(ENABLE_NETWORK "cmake" Libiw libs dirs)
 endif()
 querylib(ENABLE_PULSEAUDIO "pkg-config" libpulse libs dirs)
+querylib(ENABLE_SNI "pkg-config" gio-2.0 libs dirs)
 
 querylib(WITH_XCOMPOSITE "pkg-config" xcb-composite libs dirs)
 querylib(WITH_XDAMAGE "pkg-config" xcb-damage libs dirs)

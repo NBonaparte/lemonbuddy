@@ -33,6 +33,8 @@ usage() {
           Include support for internal/mpd (requires libmpdclient); disabled by default.
       ${COLORS[GREEN]}-c, --curl${COLORS[OFF]}
           Include support for internal/github (requires libcurl); disabled by default.
+      ${COLORS[GREEN]}-t, --tray${COLORS[OFF]}
+          Include support for internal/tray (requires libgdbus); disabled by default.
       ${COLORS[GREEN]}-i, --ipc${COLORS[OFF]}
           Build polybar-msg used to send ipc messages; disabled by default.
       ${COLORS[GREEN]}--all-features${COLORS[OFF]}
@@ -104,6 +106,7 @@ set_build_opts() {
     [[ -z "$ENABLE_NETWORK" ]] && ENABLE_NETWORK="OFF"
     [[ -z "$ENABLE_MPD" ]] && ENABLE_MPD="OFF"
     [[ -z "$ENABLE_CURL" ]] && ENABLE_CURL="OFF"
+    [[ -z "$ENABLE_TRAY" ]] && ENABLE_TRAY="OFF"
     [[ -z "$ENABLE_IPC_MSG" ]] && ENABLE_IPC_MSG="OFF"
   fi
 
@@ -140,6 +143,11 @@ set_build_opts() {
   if [[ -z "$ENABLE_CURL" ]]; then
     read -r -p "$(msg "Include support for \"internal/github\" (requires libcurl) ------- [y/N]: ")" -n 1 p && echo
     [[ "${p^^}" != "Y" ]] && ENABLE_CURL="OFF" || ENABLE_CURL="ON"
+  fi
+
+  if [[ -z "$ENABLE_TRAY" ]]; then
+    read -r -p "$(msg "Include support for \"internal/tray\" (requires gdbus) ----------- [y/N]: ")" -n 1 p && echo
+    [[ "${p^^}" != "Y" ]] && ENABLE_TRAY="OFF" || ENABLE_TRAY="ON"
   fi
 
   if [[ -z "$ENABLE_IPC_MSG" ]]; then
@@ -197,7 +205,9 @@ main() {
     -DENABLE_MPD:BOOL="${ENABLE_MPD}"         \
     -DENABLE_NETWORK:BOOL="${ENABLE_NETWORK}" \
     -DENABLE_CURL:BOOL="${ENABLE_CURL}"       \
+    -DENABLE_TRAY:BOOL="${ENABLE_TRAY}"       \
     -DBUILD_IPC_MSG:BOOL="${ENABLE_IPC_MSG}"   \
+
     .. || msg_err "Failed to generate build... read output to get a hint of what went wrong"
 
   msg "Building project"
@@ -226,6 +236,8 @@ while [[ "$1" == -* ]]; do
       ENABLE_MPD=ON; shift ;;
     -c|--curl)
       ENABLE_CURL=ON; shift ;;
+    -t|--tray)
+      ENABLE_TRAY=ON; shift ;;
     -i|--ipc)
       ENABLE_IPC_MSG=ON; shift ;;
     --all-features)
@@ -235,6 +247,7 @@ while [[ "$1" == -* ]]; do
       ENABLE_NETWORK=ON
       ENABLE_MPD=ON
       ENABLE_CURL=ON
+      ENABLE_TRAY=ON
       ENABLE_IPC_MSG=ON
       shift ;;
 

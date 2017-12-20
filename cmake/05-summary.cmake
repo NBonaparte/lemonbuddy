@@ -20,6 +20,7 @@ colored_option("   mpd" ENABLE_MPD)
 colored_option("   network (${WIRELESS_LIB})" ENABLE_NETWORK)
 colored_option("   pulseaudio" ENABLE_PULSEAUDIO)
 colored_option("   xkeyboard" WITH_XKB)
+colored_option("   sni" ENABLE_SNI)
 
 message(STATUS " X extensions:")
 colored_option("   xcb-randr" WITH_XRANDR)
