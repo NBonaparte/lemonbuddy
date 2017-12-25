@@ -1,5 +1,8 @@
 #pragma once
 
+// need blocking or non-blocking?
+#include <moodycamel/blockingconcurrentqueue.h>
+
 #include "modules/meta/event_module.hpp"
 #include "modules/meta/input_handler.hpp"
 #include "adapters/sni.hpp"
@@ -10,7 +13,7 @@ namespace sni {
   class host;
 }
 
-namespace tray {
+namespace modules {
   using watcher_t = shared_ptr<sni::watcher>;
   using host_t = shared_ptr<sni::host>;
 
@@ -28,9 +31,20 @@ namespace tray {
     bool input(string&& cmd);
 
    private:
+    /* different event types
+     * watcher: acquired, lost, new item, no item
+     * host: watcher changed (new item), item changed (change prop), init, acquired, lost
+     * module: clicks?
+     */
+    // queue to communicate between watcher, host, and module
+    moodycamel::BlockingConcurrentQueue<sni::evtype> m_queue;
+
+    thread m_watcher_thread;
     watcher_t m_watcher;
+
+    thread m_host_thread;
     host_t m_host;
-  }
+  };
 }
 
 POLYBAR_NS_END

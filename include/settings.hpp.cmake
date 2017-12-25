@@ -25,6 +25,7 @@
 #cmakedefine01 ENABLE_I3
 #cmakedefine01 ENABLE_CURL
 #cmakedefine01 ENABLE_PULSEAUDIO
+#cmakedefine01 ENABLE_SNI
 
 #cmakedefine01 WITH_XRANDR
 #cmakedefine01 WITH_XRENDER
@@ -103,7 +104,7 @@ const auto version_details = [](const std::vector<std::string>& args) {
 // clang-format off
 const auto print_build_info = [](bool extended = false) {
   printf("%s %s\n\n", APP_NAME, APP_VERSION);
-  printf("Features: %calsa %ccurl %ci3 %cmpd %cnetwork(%s) %cpulseaudio %cxkeyboard\n",
+  printf("Features: %calsa %ccurl %ci3 %cmpd %cnetwork(%s) %cpulseaudio %cxkeyboard %csni\n",
     (ENABLE_ALSA       ? '+' : '-'),
     (ENABLE_CURL       ? '+' : '-'),
     (ENABLE_I3         ? '+' : '-'),
@@ -111,7 +112,8 @@ const auto print_build_info = [](bool extended = false) {
     (ENABLE_NETWORK    ? '+' : '-'),
     WIRELESS_LIB,
     (ENABLE_PULSEAUDIO ? '+' : '-'),
-    (ENABLE_XKEYBOARD  ? '+' : '-'));
+    (ENABLE_XKEYBOARD  ? '+' : '-'),
+    (ENABLE_SNI     ? '+' : '-'));
   if (extended) {
     printf("\n");
     printf("X extensions: %crandr (%cmonitors) %crender %cdamage %csync %ccomposite %cxkb %cxrm %cxcursor\n",

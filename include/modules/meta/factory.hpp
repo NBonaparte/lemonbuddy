@@ -43,7 +43,10 @@
 #if ENABLE_XKEYBOARD
 #include "modules/xkeyboard.hpp"
 #endif
-#if not(ENABLE_I3 && ENABLE_MPD && ENABLE_NETWORK && ENABLE_ALSA && ENABLE_PULSEAUDIO && ENABLE_CURL && ENABLE_XKEYBOARD)
+#if ENABLE_SNI
+#include "modules/tray.hpp"
+#endif
+#if not(ENABLE_I3 && ENABLE_MPD && ENABLE_NETWORK && ENABLE_ALSA && ENABLE_PULSEAUDIO && ENABLE_CURL && ENABLE_XKEYBOARD && ENABLE_SNI)
 #include "modules/unsupported.hpp"
 #endif
 
@@ -88,6 +91,8 @@ namespace {
     } else if (name == "internal/systray") {
       return new systray_module(bar, move(module_name));
 #endif
+    } else if (name == "internal/tray") {
+      return new tray_module(bar, move(module_name));
     } else if (name == "internal/temperature") {
       return new temperature_module(bar, move(module_name));
     } else if (name == "internal/xbacklight") {
