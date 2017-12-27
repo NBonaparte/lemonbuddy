@@ -15,7 +15,7 @@ DEFINE_ERROR(host_error);
 namespace sni {
     /* different event types
      * watcher: acquired, lost, new item, no item
-     * host: watcher changed (new item), item changed (change prop), init, acquired, lost
+     * host: watcher changed (new/no item), item changed (change prop), init, acquired, lost
      * module: clicks?
      */
   enum class evtype {
@@ -23,7 +23,7 @@ namespace sni {
     WATCHER_LOST,
     WATCHER_NEW,
     WATCHER_DELETE,
-    HOST_NEW,
+    HOST_ITEM,
     HOST_CHANGE,
     HOST_INIT,
     HOST_ACQUIRED,

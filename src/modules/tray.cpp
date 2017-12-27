@@ -22,10 +22,13 @@ namespace modules {
       m_log.warn("watcher: %s", err.what());
     }
     // wait until acquired/lost is in queue, then build host?
+    sni::evtype item;
+    m_queue.wait_dequeue(item);
+    bool watcher_exists = (item == sni::evtype::WATCHER_ACQUIRED);
     // Create host
     try {
       m_host_thread = thread([&] {
-        m_host = factory_util::unique<sni::host>(m_log, true, m_queue);
+        m_host = factory_util::unique<sni::host>(m_log, watcher_exists, m_queue);
       });
       m_host_thread.detach();
     } catch (const host_error& err) {
@@ -42,7 +45,15 @@ namespace modules {
 
   bool tray_module::has_event() {
     // Check if new item/removed item
-    return false;
+    sni::evtype item;
+    bool event = m_queue.try_dequeue(item);
+    switch (item) {
+      case blah:
+        break;
+      case doot:
+        break;
+    }
+    return event;
   }
 
   bool tray_module::update() {

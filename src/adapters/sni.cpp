@@ -326,6 +326,7 @@ namespace sni {
       }
     }
     // signal to redraw tray
+    This->m_queue.enqueue(evtype::HOST_ITEM);
   }
   
   /**
@@ -356,6 +357,7 @@ namespace sni {
       }
     }
     // signal to redraw tray
+    This->m_queue.enqueue(evtype::HOST_CHANGE);
   }
 
   /**
@@ -385,6 +387,7 @@ namespace sni {
     g_variant_unref(items);
 
     // signal to redraw tray
+    This->m_queue.enqueue(evtype::HOST_INIT);
   }
 
   /**
@@ -405,6 +408,7 @@ namespace sni {
     This->m_log.info("tray-host: name successfully acquired");
     g_bus_watch_name(G_BUS_TYPE_SESSION, watcher::WATCHER_NAME, G_BUS_NAME_WATCHER_FLAGS_NONE,
         watcher_appeared_handler, watcher_vanished_handler, userdata, nullptr);
+    This->m_queue.enqueue(evtype::HOST_ACQUIRED);
   }
 
   /**
@@ -413,6 +417,7 @@ namespace sni {
   void host::on_name_lost(GDBusConnection *, const gchar *, gpointer userdata) {
     host *This = static_cast<host *>(userdata);
     This->m_log.err("tray-host: could not register name");
+    This->m_queue.enqueue(evtype::HOST_LOST);
   }
 }
 
