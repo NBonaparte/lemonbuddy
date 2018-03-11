@@ -112,7 +112,7 @@ namespace sni {
         service = sender + param_str;
       } else if (param_str[0] == ':') {
         // xembedproxy sends item name, so we should use item from argument
-	service = param_str + "/StatusNotifierItem";
+        service = param_str + "/StatusNotifierItem";
       } else {
         service = sender;
         service += "/StatusNotifierItem";
@@ -164,7 +164,7 @@ namespace sni {
       // randomness
       return g_variant_new_boolean(false);
     }
-  } 
+  }
 
   /**
    * Interface table for property/method handlers
@@ -180,7 +180,7 @@ namespace sni {
    */
   void watcher::on_bus_acquired(GDBusConnection *c, const gchar *, gpointer userdata) {
     watcher *This = static_cast<watcher *>(userdata);
-    This->m_log.info("tray-watcher: acquired connection to DBus"); 
+    This->m_log.info("tray-watcher: acquired connection to DBus");
     guint reg_id = g_dbus_connection_register_object(c, WATCHER_PATH, This->m_intro_data->interfaces[0], &m_vtable, This, nullptr, nullptr);
     g_assert(reg_id > 0);
   }
@@ -268,7 +268,7 @@ namespace sni {
       g_variant_get(val, "(v)", &var);
       if (var != nullptr) {
         retstr = string{g_variant_get_string(var, nullptr)};
-	g_variant_unref(var);
+        g_variant_unref(var);
       }
       g_variant_unref(val);
     }
@@ -321,14 +321,14 @@ namespace sni {
       for (auto it = This->m_items.begin(); it != This->m_items.end(); it++) {
         if (it->dbus_name.compare(name) == 0) {
           This->m_items.erase(it);
-	  break;
-	}
+          break;
+        }
       }
     }
     // signal to redraw tray
     This->m_queue.enqueue(evtype::HOST_ITEM);
   }
-  
+
   /**
    * Callback when an item has changed
    */
@@ -341,8 +341,8 @@ namespace sni {
     for (auto it = This->m_items.begin(); it != This->m_items.end(); it++) {
       if (it->dbus_name.compare(sender) == 0) {
         item = &*it;
-	break;
-      } 
+        break;
+      }
     }
     if (item != nullptr) {
       if (g_strcmp0(signal, "NewTitle") == 0) {
