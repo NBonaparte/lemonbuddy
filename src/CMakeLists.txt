@@ -71,6 +71,18 @@ endif()
 
 # }}}
 
+if(ENABLE_SNI)
+  execute_process(COMMAND gdbus-codegen --c-namespace SniWatcher --generate-c-code watcher_generated
+      --interface-prefix org.kde.StatusNotifierWatcher --output-directory ${PROJECT_SOURCE_DIR}
+      ${PROJECT_SOURCE_DIR}/src/adapters/sni/watcher.xml
+      RESULT_VARIABLE failed)
+  if(failed)
+    message(FATAL_ERROR "Failed to generate SNI watcher using gdbus-codegen")
+  endif()
+  file(RENAME ${PROJECT_SOURCE_DIR}/watcher_generated.c ${PROJECT_SOURCE_DIR}/src/adapters/watcher_generated.c)
+  file(RENAME ${PROJECT_SOURCE_DIR}/watcher_generated.h ${PROJECT_SOURCE_DIR}/include/adapters/watcher_generated.h)
+endif()
+
 # Target: polybar {{{
 
 make_executable(polybar

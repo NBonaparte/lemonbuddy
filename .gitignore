@@ -9,3 +9,4 @@
 *.swp
 *.tmp
 .tags
+watcher_generated*
