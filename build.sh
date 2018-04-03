@@ -106,7 +106,7 @@ set_build_opts() {
     [[ -z "$ENABLE_NETWORK" ]] && ENABLE_NETWORK="OFF"
     [[ -z "$ENABLE_MPD" ]] && ENABLE_MPD="OFF"
     [[ -z "$ENABLE_CURL" ]] && ENABLE_CURL="OFF"
-    [[ -z "$ENABLE_TRAY" ]] && ENABLE_TRAY="OFF"
+    [[ -z "$ENABLE_SNI" ]] && ENABLE_SNI="OFF"
     [[ -z "$ENABLE_IPC_MSG" ]] && ENABLE_IPC_MSG="OFF"
   fi
 
@@ -145,9 +145,9 @@ set_build_opts() {
     [[ "${p^^}" != "Y" ]] && ENABLE_CURL="OFF" || ENABLE_CURL="ON"
   fi
 
-  if [[ -z "$ENABLE_TRAY" ]]; then
+  if [[ -z "$ENABLE_SNI" ]]; then
     read -r -p "$(msg "Include support for \"internal/tray\" (requires gdbus) ----------- [y/N]: ")" -n 1 p && echo
-    [[ "${p^^}" != "Y" ]] && ENABLE_TRAY="OFF" || ENABLE_TRAY="ON"
+    [[ "${p^^}" != "Y" ]] && ENABLE_SNI="OFF" || ENABLE_SNI="ON"
   fi
 
   if [[ -z "$ENABLE_IPC_MSG" ]]; then
@@ -205,9 +205,8 @@ main() {
     -DENABLE_MPD:BOOL="${ENABLE_MPD}"         \
     -DENABLE_NETWORK:BOOL="${ENABLE_NETWORK}" \
     -DENABLE_CURL:BOOL="${ENABLE_CURL}"       \
-    -DENABLE_TRAY:BOOL="${ENABLE_TRAY}"       \
+    -DENABLE_SNI:BOOL="${ENABLE_SNI}"       \
     -DBUILD_IPC_MSG:BOOL="${ENABLE_IPC_MSG}"   \
-
     .. || msg_err "Failed to generate build... read output to get a hint of what went wrong"
 
   msg "Building project"
@@ -237,7 +236,7 @@ while [[ "$1" == -* ]]; do
     -c|--curl)
       ENABLE_CURL=ON; shift ;;
     -t|--tray)
-      ENABLE_TRAY=ON; shift ;;
+      ENABLE_SNI=ON; shift ;;
     -i|--ipc)
       ENABLE_IPC_MSG=ON; shift ;;
     --all-features)
@@ -247,7 +246,7 @@ while [[ "$1" == -* ]]; do
       ENABLE_NETWORK=ON
       ENABLE_MPD=ON
       ENABLE_CURL=ON
-      ENABLE_TRAY=ON
+      ENABLE_SNI=ON
       ENABLE_IPC_MSG=ON
       shift ;;
 

@@ -9,36 +9,15 @@ namespace modules {
   template class module<tray_module>;
 
   tray_module::tray_module(const bar_settings& bar, string name_) : event_module<tray_module>(bar, move(name_)) {
-    // Create watcher on new thread
-    m_log.warn("%u", std::this_thread::get_id());
-    try {
-      m_watcher_thread = thread([&] {
-        m_watcher = factory_util::unique<sni::watcher>(m_log, m_queue);		      
-      });
-    // maybe find a better way to allow the watcher to terminate gracefully (if another exists)
-    // use queue to notify when to join()? 
-      m_watcher_thread.detach();
-    } catch (const watcher_error& err) {
-      m_log.warn("watcher: %s", err.what());
-    }
-    // wait until acquired/lost is in queue, then build host?
-    sni::evtype item;
-    m_queue.wait_dequeue(item);
-    bool watcher_exists = (item == sni::evtype::WATCHER_ACQUIRED);
     // Create host
     try {
-      m_host_thread = thread([&] {
-        m_host = factory_util::unique<sni::host>(m_log, watcher_exists, m_queue);
-      });
-      m_host_thread.detach();
+      m_host = factory_util::unique<sni::host>(m_log, watcher_exists, m_queue);
     } catch (const host_error& err) {
       m_log.warn("host: %s", err.what());
     }
   }
 
   void tray_module::stop() {
-    // Kill watcher, host
-    m_watcher.reset();
     m_host.reset();
     event_module::stop();
   }
@@ -47,13 +26,21 @@ namespace modules {
     // Check if new item/removed item
     sni::evtype item;
     bool event = m_queue.try_dequeue(item);
+    if (!event) {
+      return false;
+    }
+
     switch (item) {
-      case blah:
-        break;
-      case doot:
+      case sni::evtype::HOST_ITEM:
+      case sni::evtype::HOST_CHANGE:
+      case sni::evtype::HOST_INIT:
+        m_log.warn("hai");
+        m_log.warn("%u", m_host->get_items().size());
+        return true;
+      default:
         break;
     }
-    return event;
+    return false;
   }
 
   bool tray_module::update() {
@@ -65,7 +52,6 @@ namespace modules {
   }
 
   string tray_module::get_output() {
-    // idk
     return ""s;
   }
 

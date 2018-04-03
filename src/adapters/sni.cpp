@@ -1,5 +1,8 @@
 //#include "sni-generated.h"
 #include <gio/gio.h>
+#include <gdk/gdk.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <gtk/gtk.h>
 #include <algorithm>
 #include "adapters/sni.hpp"
 #include "components/logger.hpp"
@@ -22,7 +25,6 @@ namespace sni {
     m_intro_data = g_dbus_node_info_new_for_xml(XML_DATA, nullptr);
     g_assert(m_intro_data != nullptr);
 
-    m_log.warn("%u", std::this_thread::get_id());
     m_mainloop = g_main_loop_new(nullptr, FALSE);
     m_id = g_bus_own_name(G_BUS_TYPE_SESSION, WATCHER_NAME, G_BUS_NAME_OWNER_FLAGS_REPLACE,
         on_bus_acquired, on_name_acquired, on_name_lost, this, nullptr);
@@ -34,10 +36,12 @@ namespace sni {
    * Deconstruct watcher
    */
   watcher::~watcher() {
+    g_dbus_node_info_unref(m_intro_data);
     if (g_main_loop_is_running(m_mainloop)) {
       g_bus_unown_name(m_id);
       g_main_loop_quit(m_mainloop);
     }
+    g_main_loop_unref(m_mainloop);
   }
 
   /**
@@ -100,10 +104,13 @@ namespace sni {
     watcher *This = static_cast<watcher *>(userdata);
     // check whether xembedsniproxy is being used
     bool proxy = false;
-    string param_str, service;
+    const gchar *tmp{nullptr};
+    string service{};
+    g_variant_get(param, "(&s)", &tmp);
+    string param_str{tmp};
     //g_variant_get(param, "(&s)", *(param_str.c_str()));
     // write directly to char buffer of string
-    g_variant_get(param, "(&s)", &param_str.front());
+    //g_variant_get(param, "(&s)", &param_str.front());
     This->m_log.info("tray-watcher: %s called method %s, with arguments %s", sender, method_name, param_str);
 
     if (g_strcmp0(method_name, "RegisterStatusNotifierItem") == 0) {
@@ -117,10 +124,14 @@ namespace sni {
         service = sender;
         service += "/StatusNotifierItem";
       }
+      if (std::find(This->m_items.begin(), This->m_items.end(), service) != This->m_items.end()) {
+        return;
+      }
 
       g_dbus_method_invocation_return_value(invoc, nullptr);
       g_dbus_connection_emit_signal(c, nullptr, WATCHER_PATH, WATCHER_NAME, "StatusNotifierItemRegistered",
           g_variant_new("(s)", service.c_str()), nullptr);
+      // TODO use some other method for storing service (what if another item appears in between?)
       This->tmp_param = service;
       g_bus_watch_name(G_BUS_TYPE_SESSION, proxy ? param_str.c_str() : sender, G_BUS_NAME_WATCHER_FLAGS_NONE,
           item_appeared_handler, item_vanished_handler, (gpointer) This, nullptr);
@@ -211,18 +222,20 @@ namespace sni {
    * Construct host object
    */
   host::host(const logger& logger, bool watcher_exists, queue& queue) : m_log(logger), m_queue(queue) {
-    // establish icon theme, main loop?
+    // need to init gtk so we can get the icon theme
+    gtk_init(0, nullptr);
+    m_theme = gtk_icon_theme_get_default();
     // only run host if watcher already exists (and isn't ours)
     if (watcher_exists) {
-      m_hostname = "org.freedesktop.StatusNotifierHost-" + to_string(getpid());
-      m_mainloop = g_main_loop_new(nullptr, false);
-      m_id = g_bus_own_name(G_BUS_TYPE_SESSION, m_hostname.c_str(), G_BUS_NAME_OWNER_FLAGS_NONE, nullptr, on_name_acquired, on_name_lost,
-          this, nullptr);
-      g_main_loop_run(m_mainloop);
-    } else {
-      // if it is ours, use a queue to communicate?
-
+      m_log.warn("greetings");
     }
+    m_hostname = "org.freedesktop.StatusNotifierHost-" + to_string(getpid());
+    m_mainloop = g_main_loop_new(nullptr, false);
+    m_id = g_bus_own_name(G_BUS_TYPE_SESSION, m_hostname.c_str(), G_BUS_NAME_OWNER_FLAGS_NONE, nullptr, on_name_acquired, on_name_lost,
+        this, nullptr);
+    m_thread = std::thread([&] {
+      g_main_loop_run(m_mainloop);
+    });
   }
 
   /**
@@ -233,6 +246,46 @@ namespace sni {
       g_bus_unown_name(m_id);
       g_main_loop_unref(m_mainloop);
     }
+  }
+
+  vector<unsigned char> host::pixbuf_to_char(GdkPixbuf *buf) {
+    auto pix = gdk_pixbuf_read_pixels(buf);
+    auto len = gdk_pixbuf_get_byte_length(buf);
+    return vector<unsigned char>(pix, pix + len);
+  }
+
+  /**
+   * Get item icons from list
+   */
+  vector<vector<unsigned char>> host::get_items() {
+    m_log.warn("afosi");
+    //std::lock_guard<std::mutex> guard(m_mutex);
+    vector<vector<unsigned char>> items{};
+
+    // awkward loading from gdk to uint8 array, maybe change image storage to gdkpixbuf instead
+    for (auto&& i : m_items) {
+      // TODO implement GError handling
+      if (!i.theme_path.empty()) {
+        // TODO actually check for different filetypes (png, svg, etc.)
+        auto path = i.theme_path + "/" + i.icon_name + ".png";
+        auto buf = gdk_pixbuf_new_from_file(path.c_str(), nullptr);
+        if (!buf) {
+          m_log.warn("Could not open image %s", path);
+        }
+        items.emplace_back(pixbuf_to_char(buf));
+        g_object_unref(buf);
+      } else {
+        // look up the icons from the theme here, so we don't have to in the module
+        // gtk_icon_theme_load_surface is nice, but we currently don't pass surfaces
+        auto buf = gtk_icon_theme_load_icon(m_theme, i.icon_name.c_str(), 24, GTK_ICON_LOOKUP_USE_BUILTIN, nullptr);
+        if (!buf) {
+          m_log.warn("Could not load image %s from theme", i.icon_name);
+        }
+        items.emplace_back(pixbuf_to_char(buf));
+        g_object_unref(buf);
+      }
+    }
+    return items;
   }
 
   // cached or non-cached?
@@ -291,7 +344,7 @@ namespace sni {
     data.title = get_prop_string(p, "Status");
     // TODO: set icon path here, or before drawing?
     data.icon_name = get_prop_string(p, "IconName");
-    // icon theme path?
+    data.theme_path = get_prop_string(p, "IconThemePath");
     data.icon_pixmap = get_prop_pixmap(p, "IconPixmap", data);
     //data->overlay_name = get_prop_string(p, "OverlayIconName");
     //data->att_name = get_prop_string(p, "AttentionIconName");
@@ -305,16 +358,21 @@ namespace sni {
    */
   void host::on_watch_sig_changed(GDBusProxy *, gchar *, gchar *signal, GVariant *param, gpointer userdata) {
     host *This = static_cast<host *>(userdata);
+    //std::lock_guard<std::mutex> guard(This->m_mutex);
     string item, name, path;
     // gchars to string?
     if (g_strcmp0(signal, "StatusNotifierItemRegistered") == 0) {
-      g_variant_get(param, "(&s)", &item.front());
+      const gchar *tmp{nullptr};
+      g_variant_get(param, "(&s)", &tmp);
+      string item{tmp};
       name = string{item, 0, item.find('/')};
       path = string{item, item.find('/')};
       This->m_log.info("tray-host: item %s has been registered", item);
       This->m_items.emplace_back(This->init_item_data(name, path));
     } else if (g_strcmp0(signal, "StatusNotifierItemUnregistered") == 0) {
-      g_variant_get(param, "(&s)", &item.front());
+      const gchar *tmp{nullptr};
+      g_variant_get(param, "(&s)", &tmp);
+      string item{tmp};
       name = string{item, 0, item.find('/')};
       path = string{item, item.find('/')};
       This->m_log.info("tray-host: item %s has been unregistered", item);
@@ -333,8 +391,6 @@ namespace sni {
    * Callback when an item has changed
    */
   void host::on_item_sig_changed(GDBusProxy *p, gchar *sender, gchar *signal, GVariant *, gpointer userdata) {
-    // cannot do log here because userdata is used for item
-    // maybe use sender to track for item name?
     //item_data *item = static_cast<item_data *>(userdata);
     host *This = static_cast<host *>(userdata);
     item_data *item{nullptr};
@@ -373,19 +429,23 @@ namespace sni {
     g_signal_connect(proxy, "g-signal", G_CALLBACK(on_watch_sig_changed), userdata);
 
     GVariant *items = g_dbus_proxy_get_cached_property(proxy, "RegisteredStatusNotifierItems"), *content;
-    GVariantIter *it = g_variant_iter_new(items);
-    //for (it = g_variant_iter_new(items); content != nullptr; content = g_variant_iter_next_value(it)) {
-    while ((content = g_variant_iter_next_value(it))) {
-      string tmp = string{g_variant_get_string(content, nullptr)};
-      // name until first '/'
-      string it_name = string{tmp, 0, tmp.find('/')};
-      // path after (including) first '/'
-      string it_path = string{tmp, tmp.find('/')};
-      This->m_items.emplace_back(This->init_item_data(it_name, it_path));
+    if (items != nullptr) {
+      //std::lock_guard<std::mutex> guard(This->m_mutex);
+      This->m_log.warn("has stuff inside");
+      GVariantIter *it = g_variant_iter_new(items);
+      //for (it = g_variant_iter_new(items); content != nullptr; content = g_variant_iter_next_value(it)) {
+      while ((content = g_variant_iter_next_value(it))) {
+        string tmp = string{g_variant_get_string(content, nullptr)};
+        // name until first '/'
+        string it_name = string{tmp, 0, tmp.find('/')};
+        // path after (including) first '/'
+        string it_path = string{tmp, tmp.find('/')};
+        This->m_items.emplace_back(This->init_item_data(it_name, it_path));
+        This->m_log.info("tray-host: item %s/%s has been registered", it_name, it_path);
+      }
+      g_variant_iter_free(it);
+      g_variant_unref(items);
     }
-    g_variant_iter_free(it);
-    g_variant_unref(items);
-
     // signal to redraw tray
     This->m_queue.enqueue(evtype::HOST_INIT);
   }

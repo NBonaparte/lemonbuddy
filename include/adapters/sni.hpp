@@ -3,8 +3,11 @@
 #include <moodycamel/blockingconcurrentqueue.h>
 //#include "sni-generated.h"
 #include <gio/gio.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <gtk/gtk.h>
 #include "common.hpp"
 #include "errors.hpp"
+#include <mutex>
 
 POLYBAR_NS
 class logger;
@@ -41,7 +44,7 @@ namespace sni {
     uint32_t win_id;
     string icon_name;
     string icon_path;
-    string theme_path; // needed?
+    string theme_path;
 
     int icon_width;
     int icon_height;
@@ -82,7 +85,7 @@ namespace sni {
     static void on_bus_acquired(GDBusConnection *c, const gchar *name, gpointer user_data);
     static void on_name_acquired(GDBusConnection *c, const gchar *name, gpointer user_data);
     static void on_name_lost(GDBusConnection *c, const gchar *name, gpointer user_data);
-    static constexpr const char* XML_DATA = 
+    static constexpr const char* XML_DATA =
        "<!DOCTYPE node PUBLIC '-//freedesktop//DTD D-BUS Object Introspection 1.0//EN' 'http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd'>"
        "<node>"
        "	<interface name='org.kde.StatusNotifierWatcher'>"
@@ -127,7 +130,9 @@ namespace sni {
    public:
     host(const logger& logger, bool watcher_exists, queue& queue);
     ~host();
+    vector<vector<unsigned char>> get_items();
    private:
+    vector<unsigned char> pixbuf_to_char(GdkPixbuf *buf);
     string get_prop_pixmap(GDBusProxy *p, const char *prop, item_data& data);
     string get_prop_string(GDBusProxy *p, const char *prop);
     item_data init_item_data(const string& name, const string& path);
@@ -142,11 +147,14 @@ namespace sni {
     GMainLoop *m_mainloop{nullptr};
     guint m_id;
 
+    std::thread m_thread{};
     vector<item_data> m_items{};
     string m_hostname;
-    string m_theme;
+    //string m_theme;
     const logger& m_log;
     queue& m_queue;
+    GtkIconTheme* m_theme;
+    std::mutex m_mutex{};
   };
 }
 

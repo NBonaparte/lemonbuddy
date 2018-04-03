@@ -39,10 +39,8 @@ namespace modules {
     // queue to communicate between watcher, host, and module
     moodycamel::BlockingConcurrentQueue<sni::evtype> m_queue;
 
-    thread m_watcher_thread;
-    watcher_t m_watcher;
+    //watcher_t m_watcher;
 
-    thread m_host_thread;
     host_t m_host;
   };
 }
