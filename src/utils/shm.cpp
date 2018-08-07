@@ -1,3 +1,7 @@
+#ifdef __linux__
+#include <linux/memfd.h>
+#endif // __linux__
+
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
