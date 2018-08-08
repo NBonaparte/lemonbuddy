@@ -6,10 +6,13 @@
 #include "utils/factory.hpp"
 #include "utils/file.hpp"
 #include "utils/math.hpp"
+#include "utils/shm.hpp"
 #include "x11/atoms.hpp"
 #include "x11/connection.hpp"
 #include "x11/extensions/all.hpp"
 #include "x11/winspec.hpp"
+
+#include <unistd.h>
 
 POLYBAR_NS
 
@@ -602,12 +605,25 @@ cairo_surface_t* resize_surface(cairo_surface_t* old_surface, double new_width, 
 }
 
 void renderer::draw_icon(const string& icon_location) {
-  auto s = base64_decode(icon_location);
+  // decode string to get fd, position, and size
+  auto loc_split = string_util::split(icon_location, ',');
+  auto fd = std::stoi(loc_split[0]);
+  auto pos = std::stoi(loc_split[1]);
+  auto size = std::stoi(loc_split[2]);
+
+  // create temp buffer to store data
+  vector<unsigned int> buf(size);
+  auto r = pread(fd, buf.data(), size, pos);
+  if (r != size)
+    throw system_error("failed to read image data");
+
+  // reset position so future icons can write over existing ones
+  lseek(fd, 0, SEEK_SET);
 
   auto dest_icon_size = m_rect.height >= 16 ? 16 : pow(2, floor(log2(m_rect.height)));
 
-  auto icon_data = s.data();
-  auto icon_size = (int)sqrt(s.length() / 4);
+  auto icon_data = buf.data();
+  auto icon_size = (int)sqrt(size / 4);
 
   auto height = m_rect.height;
 

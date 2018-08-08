@@ -92,9 +92,11 @@ namespace modules {
     bool m_strip_wsnumbers{false};
     bool m_fuzzy_match{false};
     bool m_show_icons{false};
+    int m_icon_fd{-1};
     string m_icons_side{"right"};
 
     unique_ptr<i3_util::connection_t> m_ipc;
+    std::vector<std::string> getApplicationsForTree(std::shared_ptr<i3ipc::container_t> tree);
   };
 }
 

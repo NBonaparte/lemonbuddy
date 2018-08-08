@@ -1,4 +1,4 @@
-#ifdef __linux__
+#if defined(__linux__) && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 27
 #include <linux/memfd.h>
 #endif // __linux__
 
@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdlib.h>
 
 #include "errors.hpp"
 #include "utils/shm.hpp"
@@ -13,46 +14,56 @@
 POLYBAR_NS
 
 namespace shm_util {
-  shm::shm(size_t len) : m_len(len) {
+  int create_shm(size_t len) {
 #ifdef __FreeBSD__
-    m_fd = shm_open("/polybar", SHM_ANON, 0600);
-    if(m_fd < 0)
-      throw system_error("shm_open failed.");
-#else // Linux
-    m_fd = memfd_create("polybar", MFD_CLOEXEC | MFD_ALLOW_SEALING);
-    if(m_fd < 0)
-      throw system_error("memfd_create failed.");
+    auto fd = shm_open("/polybar", SHM_ANON, 0600);
+    if(fd < 0)
+      throw system_error("failed to create shared memory object using shm_open");
+#elif defined(__linux__) && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 27
+    // requires glibc>=2.27 (or use syscall instead)
+    auto fd = memfd_create("polybar", MFD_CLOEXEC | MFD_ALLOW_SEALING);
+    if(fd < 0)
+      throw system_error("failed to create anonymous file using memfd_create");
 
     // seal to prevent shrinking of file
-    if(fcntl(m_fd, F_ADD_SEALS, F_SEAL_SHRINK) < 0)
-      throw system_error("fcntl failed.");
+    if(fcntl(fd, F_ADD_SEALS, F_SEAL_SHRINK) < 0)
+      throw system_error("failed to seal anonymous file");
+#else
+    // use standard mkstemp and unlink (posix)
+    char name[] = "/tmp/polybarXXXXXX";
+    auto fd = mkstemp(name);
+    if (fd < 0)
+      throw system_error("failed to create temporary file using mkstemp");
+
+    auto ret = unlink(name);
+    if (ret < 0)
+      throw system_error("failed to unlink temporary file");
 #endif
 
     // set size
-    if(ftruncate(m_fd, m_len) < 0)
-      throw system_error("ftruncate failed.");
+    if(ftruncate(fd, len) < 0)
+      throw system_error("failed to set shared memory object size");
 
-    // map memory
-    m_mem = mmap(nullptr, m_len, PROT_READ | PROT_WRITE, MAP_SHARED, m_fd, 0);
-    if(m_mem == MAP_FAILED)
-      throw system_error("mmap failed.");
-
+    return fd;
   }
 
-  shm::~shm() noexcept(false) {
-    if(m_fd) {
-      if(munmap(m_mem, m_len) < 0)
-        throw system_error("munmap failed.");
-      if(close(m_fd) < 0)
-        throw system_error("close failed.");
+  /*
+   * Resize shared memory file by `len` bytes.
+   */
+  void resize_shm(int fd, size_t len) {
+    auto orig_pos = lseek(fd, 0, SEEK_CUR);
+    auto fsize = lseek(fd, 0, SEEK_END);
+    if (ftruncate(fd, fsize + len) < 0) {
+      throw system_error("failed to resize shared memory object");
     }
+    // reset offset
+    lseek(fd, orig_pos, SEEK_SET);
   }
 
-  int shm::get_fd() const {
-    return m_fd;
-  }
-  void *shm::get_mem() const {
-    return m_mem;
+  void destroy_shm(int fd) {
+    if (close(fd) < 0) {
+      throw system_error("failed to close shared memory object");
+    }
   }
 }
 

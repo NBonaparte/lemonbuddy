@@ -6,6 +6,7 @@
 #include "modules/i3.hpp"
 #include "utils/factory.hpp"
 #include "utils/file.hpp"
+#include "utils/shm.hpp"
 
 #include "modules/meta/base.inl"
 
@@ -33,6 +34,9 @@ namespace modules {
     m_strip_wsnumbers = m_conf.get(name(), "strip-wsnumbers", m_strip_wsnumbers);
     m_fuzzy_match = m_conf.get(name(), "fuzzy-match", m_fuzzy_match);
     m_show_icons = m_conf.get(name(), "show-icons", m_show_icons);
+    if (m_show_icons) {
+      m_icon_fd = shm_util::create_shm(0);
+    }
     m_icons_side = m_conf.get(name(), "icons-side", m_icons_side);
 
     m_conf.warn_deprecated(name(), "wsname-maxlen", "%name:min:max%");
@@ -116,7 +120,7 @@ namespace modules {
     }
   }
 
-  std::vector<std::string> getApplicationsForTree(std::shared_ptr<i3ipc::container_t> tree) {
+  std::vector<std::string> i3_module::getApplicationsForTree(std::shared_ptr<i3ipc::container_t> tree) {
     std::vector<std::string> windows;
     auto t = *tree;
 
@@ -125,8 +129,15 @@ namespace modules {
       auto icon = ewmh_util::get_wm_icon((xcb_window_t)xwindow_id);
 
       if (!icon.empty()) {
-        auto b64 = base64_encode(icon.data(), icon.size());
-        windows.push_back(b64);
+        shm_util::resize_shm(m_icon_fd, icon.size());
+        auto cur_pos = lseek(m_icon_fd, 0, SEEK_CUR);
+        auto r = write(m_icon_fd, icon.data(), icon.size());
+        if (static_cast<unsigned long>(r) != icon.size())
+          throw system_error("failed to write image data");
+        auto str = std::to_string(m_icon_fd) + ',' + std::to_string(cur_pos)
+            + ',' + std::to_string(icon.size());
+
+        windows.push_back(str);
       }
     }
 
