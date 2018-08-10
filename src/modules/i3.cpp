@@ -100,7 +100,7 @@ namespace modules {
       }
     } catch (...) {
     }
-
+    shm_util::destroy_shm(m_icon_fd);
     event_module::stop();
   }
 
