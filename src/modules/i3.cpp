@@ -129,8 +129,14 @@ namespace modules {
       auto icon = ewmh_util::get_wm_icon((xcb_window_t)xwindow_id);
 
       if (!icon.empty()) {
-        shm_util::resize_shm(m_icon_fd, icon.size());
         auto cur_pos = lseek(m_icon_fd, 0, SEEK_CUR);
+        auto fsize = lseek(m_icon_fd, 0, SEEK_END);
+        // reset to original position after finding end
+        lseek(m_icon_fd, cur_pos, SEEK_SET);
+        unsigned long off = fsize - cur_pos;
+        if (off < icon.size()) {
+          shm_util::resize_shm(m_icon_fd, icon.size() - off);
+        }
         auto r = write(m_icon_fd, icon.data(), icon.size());
         if (static_cast<unsigned long>(r) != icon.size())
           throw system_error("failed to write image data");
