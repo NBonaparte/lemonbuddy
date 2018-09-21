@@ -223,7 +223,9 @@ namespace sni {
    */
   host::host(const logger& logger, bool watcher_exists, queue& queue) : m_log(logger), m_queue(queue) {
     // need to init gtk so we can get the icon theme
-    gtk_init(0, nullptr);
+    if (!gtk_init_check(0, nullptr)) {
+      throw host_error("failed to inialize gtk");
+    }
     m_theme = gtk_icon_theme_get_default();
     // only run host if watcher already exists (and isn't ours)
     if (watcher_exists) {
@@ -236,6 +238,7 @@ namespace sni {
     m_thread = std::thread([&] {
       g_main_loop_run(m_mainloop);
     });
+    m_thread.detach();
   }
 
   /**
@@ -258,7 +261,6 @@ namespace sni {
    * Get item icons from list
    */
   vector<vector<unsigned char>> host::get_items() {
-    m_log.warn("afosi");
     //std::lock_guard<std::mutex> guard(m_mutex);
     vector<vector<unsigned char>> items{};
 
@@ -271,6 +273,7 @@ namespace sni {
         auto buf = gdk_pixbuf_new_from_file(path.c_str(), nullptr);
         if (!buf) {
           m_log.warn("Could not open image %s", path);
+          continue;
         }
         items.emplace_back(pixbuf_to_char(buf));
         g_object_unref(buf);
@@ -280,7 +283,9 @@ namespace sni {
         auto buf = gtk_icon_theme_load_icon(m_theme, i.icon_name.c_str(), 24, GTK_ICON_LOOKUP_USE_BUILTIN, nullptr);
         if (!buf) {
           m_log.warn("Could not load image %s from theme", i.icon_name);
+          continue;
         }
+        //gdk_pixbuf_save(buf, "test", "png", nullptr, nullptr);
         items.emplace_back(pixbuf_to_char(buf));
         g_object_unref(buf);
       }

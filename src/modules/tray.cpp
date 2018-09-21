@@ -11,7 +11,7 @@ namespace modules {
   tray_module::tray_module(const bar_settings& bar, string name_) : event_module<tray_module>(bar, move(name_)) {
     // Create host
     try {
-      m_host = factory_util::unique<sni::host>(m_log, watcher_exists, m_queue);
+      m_host = factory_util::unique<sni::host>(m_log, false, m_queue);
     } catch (const host_error& err) {
       m_log.warn("host: %s", err.what());
     }
@@ -34,7 +34,6 @@ namespace modules {
       case sni::evtype::HOST_ITEM:
       case sni::evtype::HOST_CHANGE:
       case sni::evtype::HOST_INIT:
-        m_log.warn("hai");
         m_log.warn("%u", m_host->get_items().size());
         return true;
       default:
