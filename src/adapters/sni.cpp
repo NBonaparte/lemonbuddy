@@ -266,29 +266,26 @@ namespace sni {
 
     // awkward loading from gdk to uint8 array, maybe change image storage to gdkpixbuf instead
     for (auto&& i : m_items) {
+      GdkPixbuf *buf{nullptr};
       // TODO implement GError handling
       if (!i.theme_path.empty()) {
-        // TODO actually check for different filetypes (png, svg, etc.)
-        auto path = i.theme_path + "/" + i.icon_name + ".png";
-        auto buf = gdk_pixbuf_new_from_file(path.c_str(), nullptr);
+        buf = gtk_icon_theme_load_icon(m_theme, i.icon_name.c_str(), 24, GTK_ICON_LOOKUP_USE_BUILTIN, nullptr);
         if (!buf) {
-          m_log.warn("Could not open image %s", path);
-          continue;
+          m_log.info("icon %s doesn't exist in current theme, adding %s to search paths", i.icon_name, i.theme_path);
+          gtk_icon_theme_append_search_path(m_theme, i.theme_path.c_str());
+          buf = gtk_icon_theme_load_icon(m_theme, i.icon_name.c_str(), 24, GTK_ICON_LOOKUP_USE_BUILTIN, nullptr);
         }
-        items.emplace_back(pixbuf_to_char(buf));
-        g_object_unref(buf);
       } else {
-        // look up the icons from the theme here, so we don't have to in the module
         // gtk_icon_theme_load_surface is nice, but we currently don't pass surfaces
-        auto buf = gtk_icon_theme_load_icon(m_theme, i.icon_name.c_str(), 24, GTK_ICON_LOOKUP_USE_BUILTIN, nullptr);
-        if (!buf) {
-          m_log.warn("Could not load image %s from theme", i.icon_name);
-          continue;
-        }
-        //gdk_pixbuf_save(buf, "test", "png", nullptr, nullptr);
-        items.emplace_back(pixbuf_to_char(buf));
-        g_object_unref(buf);
+        buf = gtk_icon_theme_load_icon(m_theme, i.icon_name.c_str(), 24, GTK_ICON_LOOKUP_USE_BUILTIN, nullptr);
       }
+
+      if (!buf) {
+        m_log.warn("Could not load image %s for %s", i.icon_name, i.id);
+        continue;
+      }
+      items.emplace_back(pixbuf_to_char(buf));
+      g_object_unref(buf);
     }
     return items;
   }
