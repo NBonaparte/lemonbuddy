@@ -65,7 +65,7 @@ set(SETTING_BSPWM_SOCKET_PATH "/tmp/bspwm_0_0-socket"
   CACHE STRING "Path to bspwm socket")
 set(SETTING_BSPWM_STATUS_PREFIX "W"
   CACHE STRING "Prefix prepended to the bspwm status line")
-set(SETTING_CONNECTION_TEST_IP "8.8.8.8"
+set(SETTING_CONNECTION_TEST_IP "1.1.1.1"
   CACHE STRING "Address to ping when testing network connection")
 set(SETTING_PATH_ADAPTER "/sys/class/power_supply/%adapter%"
   CACHE STRING "Path to adapter")
